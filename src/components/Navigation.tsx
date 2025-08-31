@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 const navigation = [
@@ -13,6 +14,42 @@ const navigation = [
 
 export default function Navigation() {
   const pathname = usePathname()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen)
+  }
+
+  const closeMenu = () => {
+    setIsMenuOpen(false)
+  }
+
+  // Close menu when clicking outside or on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeMenu()
+      }
+    }
+
+    if (isMenuOpen) {
+      document.addEventListener('keydown', handleEscape)
+      // Prevent body scroll when menu is open
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = 'unset'
+    }
+  }, [isMenuOpen])
+
+  // Close menu on route change
+  useEffect(() => {
+    closeMenu()
+  }, [pathname])
 
   return (
     <motion.header
@@ -90,15 +127,101 @@ export default function Navigation() {
             })}
           </div>
 
-          {/* Mobile Menu Button - for future mobile menu implementation */}
+          {/* Mobile Menu Button */}
           <div className="md:hidden">
-            <button className="p-2 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded-lg">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+            <motion.button
+              onClick={toggleMenu}
+              className="p-2 text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 rounded-lg transition-colors duration-200"
+              aria-label="Toggle mobile menu"
+              aria-expanded={isMenuOpen}
+              whileTap={{ scale: 0.95 }}
+            >
+              <motion.svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                animate={isMenuOpen ? { rotate: 90 } : { rotate: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                {isMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </motion.svg>
+            </motion.button>
           </div>
         </div>
+
+        {/* Mobile Menu Backdrop */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+              onClick={closeMenu}
+              aria-hidden="true"
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="md:hidden overflow-hidden relative z-50 bg-gray-900/95 backdrop-blur-md border-t border-gray-800/50"
+            >
+              <div className="px-2 pt-6 pb-8 space-y-2">
+                {navigation.map((item) => {
+                  const isActive = pathname === item.href
+                  return (
+                    <motion.div
+                      key={item.name}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
+                    >
+                      <Link
+                        href={item.href}
+                        onClick={closeMenu}
+                        className={cn(
+                          'block px-4 py-4 rounded-xl transition-all duration-200 border',
+                          isActive
+                            ? 'bg-accent-500/10 border-accent-500/20 text-accent-500'
+                            : 'text-gray-300 hover:text-white hover:bg-gray-800/50 border-transparent hover:border-gray-700/50'
+                        )}
+                        aria-current={isActive ? 'page' : undefined}
+                      >
+                        <div className="flex flex-col">
+                          <span className={cn(
+                            'text-base font-semibold mb-1',
+                            isActive ? 'text-accent-500' : 'text-white'
+                          )}>
+                            {item.name}
+                          </span>
+                          <span className={cn(
+                            'text-sm font-medium',
+                            isActive ? 'text-accent-400/80' : 'text-gray-400'
+                          )}>
+                            {item.description}
+                          </span>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
     </motion.header>
   )
